@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leap JavaScript API</title>
+	<link href='http://fonts.googleapis.com/css?family=Lobster' rel='stylesheet' type='text/css'>
+	<style>
+		* {
+			margin:0;
+			padding:0;
+			font-family:'Lobster',cursive;
+			font-size:20px;
+		}
+		
+		body {
+			text-align:center;
+		}
+		
+		h1 {
+			margin:30px;
+			font-size:50pt;
+		}
+	
+		#finger {
+			position:absolute;
+			margin-left:50%;
+			margin-top:50%;
+			z-index:10;
+			
+			width:80px;
+			height:80px;
+			
+			left:-40px;
+			top:-40px;
+			
+			background-color:#00aeef;
+			opacity:0.5;
+			
+			border-radius:50px;
+			
+		}
+		
+		#menu-wrapper {
+			width:100%;
+			height:300px;
+		}
+		
+		#menu {
+			width:1500px;
+			height:300px;
+			margin:auto;
+		}
+		
+		#menu div {
+			float:left;
+			margin:50px;
+			width:400px;
+			height:200px;
+			line-height:200px;
+			
+			background-color:#ccc;
+			opacity:0.5;
+			border-radius:50px;
+			box-shadow: inset 0 0 50px 0 #888;
+			
+			text-align:center;
+			font-size:40px;
+			
+			-webkit-transition:all 1.0s;
+			transition:all 1.0s;
+		}
+		
+		#info {
+			margin:auto;
+			width:600px;
+			
+			opacity:0;
+			
+			font-size:30pt;
+			-webkit-transition:all 1.0s;
+			transition:all 1.0s;
+		}
+		
+	</style>
+	<script>
+	var ws;
+	var fingerLeft = -40, fingerTop = -40;
+
+	// Support both the WebSocket and MozWebSocket objects
+	if ((typeof(WebSocket) == 'undefined') &&
+		(typeof(MozWebSocket) != 'undefined')) {
+	  WebSocket = MozWebSocket;
+	}
+
+	// Create the socket with event handlers
+	function init() {
+	  //Create and open the socket
+	  ws = new WebSocket("ws://localhost:6437/");
+
+	  // On successful connection
+	  ws.onopen = function(event) {
+		document.getElementById("main").style.visibility = "visible";
+		document.getElementById("connection").innerHTML = "WebSocket connection open!";
+		update();
+	  };
+
+	  // On message received
+	  ws.onmessage = function(event) {
+		var obj = JSON.parse(event.data);
+		
+		//var str = JSON.stringify(obj, undefined, 2);
+		//document.getElementById("output").innerHTML = '<pre>' + str + '</pre>';
+		//document.getElementById("output").innerHTML = '<pre>' + fingerLeft + '</pre>';
+				
+		//
+		if (obj.pointables && obj.pointables.length > 0) {
+			var tipPosition = obj.pointables[0].tipPosition;
+			
+			var step = 10;
+			
+			var left = tipPosition[0] * 6;
+			fingerLeft += (left - fingerLeft);
+			
+			var top = -tipPosition[1] * 5 + 1000;
+			fingerTop += (top - fingerTop);
+		}
+		
+		checkButtonsCollided();
+	  };
+
+	  // On socket close
+	  ws.onclose = function(event) {
+		ws = null;
+		document.getElementById("main").style.visibility = "hidden";
+		document.getElementById("connection").innerHTML = "WebSocket connection closed";
+	  }
+
+	  // On socket error
+	  ws.onerror = function(event) {
+		alert("Received error");
+	  };
+	  
+	  //
+	  function update () {
+		document.getElementById("finger").style.left = fingerLeft + 'px';
+		document.getElementById("finger").style.top = fingerTop + 'px';
+		setTimeout(update, 50);
+	  }
+	  
+	  //
+	  function isCollided(id) {
+	  	var finger = document.getElementById("finger");
+	  	var button = document.getElementById(id);
+	  	
+	  	return finger.offsetTop > button.offsetTop &&
+	  		finger.offsetTop + finger.offsetHeight < button.offsetTop + button.offsetHeight &&
+	  		finger.offsetLeft > button.offsetLeft &&
+	  		finger.offsetLeft + finger.offsetWidth < button.offsetLeft + button.offsetWidth;
+	  }
+	  
+	  //
+	  function checkButtonCollided(id, colour, info) {
+		if (isCollided(id)) {
+			document.getElementById(id).style.backgroundColor = colour;
+			document.getElementById(id).style.opacity = 0.8;
+			
+			document.getElementById('info').style.opacity = 1.0;
+			document.getElementById('info').innerHTML = info;
+			
+			return true;
+		} else {
+			document.getElementById(id).style.backgroundColor = '#cccccc';
+			document.getElementById(id).style.opacity = 0.5;
+			
+			return false;
+		}
+	  }
+	  
+	  //
+	  function checkButtonsCollided() {
+	  	var i,
+	  		buttonIDs = ['red', 'green', 'blue'],
+	  		colours = ['#ff0000', '#00ff00', '#0000ff'],
+	  		info = ['Red is the color of blood, a ruby, and strawberries. Next to orange at the end of the visible spectrum of light, red is commonly associated with danger, sacrifice, passion, fire, beauty, blood, anger, socialism and communism, and in China and many other cultures, with happiness.',
+				'Green is the color of emeralds, jade, and growing grass. In the continuum of colors of visible light it is located between yellow and blue. Green is the color most commonly associated with nature and the environmental movement, Islam, spring, hope and envy.',
+				'Blue is the colour of the clear sky and the deep sea. On the optical spectrum, blue is located between violet and green.'];
+	  	
+	  	document.getElementById('info').innerHTML = '';
+	  	
+	  	for (i = 0; i < buttonIDs.length; i++) {
+	  		checkButtonCollided(buttonIDs[i], colours[i], info[i]);
+	  	}
+	  	
+	  	if (document.getElementById('info').innerHTML === '') {
+	  		document.getElementById('info').style.opacity = 0;
+	  	}
+	  }
+		
+	}
+	</script>
+</head>
+<body onload="init();">
+	
+
+	<h1>Leap Test</h1>
+	<div id="connection">WebSocket not connected</div>
+	<div id="main" style="visibility:hidden">
+	  <div id="output"></div>
+	</div>
+	
+	<div id="menu-wrapper">
+		<div id="menu">
+			<div id="red">RED</div>
+			<div id="green">GREEN</div>
+			<div id="blue">BLUE</div>
+		</div>
+	</div>
+	
+	<div id="info"></div>
+	
+	<div id="finger"></div>
+	
+</body>
+</html>
